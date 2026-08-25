@@ -1,0 +1,327 @@
+================================================================
+Ghostwave — Project Log
+================================================================
+Date        : 04-05/05/2026
+Session     : 01
+================================================================
+Team
+----------------------------------------------------------------
+Adam      ──  RF & Signal Capture (ESP32 + CC1101)
+Hazem     ──  Display & UI (ESP32 + 1.8" SPI TFT)
+================================================================
+
+PROJECT OVERVIEW
+----------------------------------------------------------------
+Building a handheld RF signal recorder and replayer —
+a DIY Flipper Zero using:
+  - ESP32 (Wemos D1 R32 / WROOM-32)
+  - CC1101 433MHz transceiver
+  - 1.8" SPI TFT display (ST7735 128x160)
+  - Breadboard + jumper wires + external power supply
+
+Repository : ghostwave
+================================================================
+
+ADAM — RF & SIGNAL CAPTURE
+================================================================
+
+OBJECTIVE
+----------------------------------------------------------------
+Set up the development environment and establish the foundation
+for RF signal capture using a CC1101 transceiver wired to an
+ESP32 via SPI.
+
+CONCEPTS LEARNED
+----------------------------------------------------------------
+SPI Protocol
+  - SPI is a hardware protocol built into the ESP32
+  - Master/Slave model — ESP32 is master, CC1101 is slave
+  - Four wires:
+      SCK   ── clock, controlled by master, syncs both chips
+      MOSI  ── ESP32 → CC1101, sends commands and config
+      MISO  ── CC1101 → ESP32, sends data back
+      CSN   ── chip select, active LOW, taps correct device
+  - Full duplex — both sides transmit simultaneously
+  - CSN is just a regular GPIO, not special hardware
+  - Multiple SPI devices share SCK, MOSI, MISO
+    but each gets its own dedicated CSN pin
+
+GDO Pins
+  - GDO0 and GDO2 are General Digital Output pins on CC1101
+  - Not part of SPI — separate signal pins
+  - GDO0 goes HIGH when CC1101 has captured RF data
+  - Acts as a trigger — ESP32 watches it, fetches data via SPI
+  - GDO2 not needed at this stage, left unconnected
+  - Full receive flow:
+      1. RF signal arrives at CC1101 antenna wirelessly
+      2. CC1101 captures it, stores in internal buffer
+      3. CC1101 pulls GDO0 HIGH
+      4. ESP32 sees GDO0 HIGH
+      5. ESP32 initiates SPI conversation
+      6. CC1101 sends data back over MISO
+      7. ESP32 prints to Serial monitor
+
+Why CC1101 needs SPI vs simple sensors
+  - Simple sensors (ultrasonic, temperature) return one value
+    over a single digital or analog pin — no protocol needed
+  - CC1101 is a complex programmable chip with ~50 registers
+    controlling frequency, modulation, data rate, mode, etc.
+  - SPI provides the two-way communication channel needed
+    to configure and control the chip AND transfer data back
+  - Configuration communication is what makes SPI necessary
+
+ESP32 Pin Knowledge
+  - GPIO 6-11   ── internal flash, never use
+  - GPIO 0, 12  ── boot sensitive, avoid
+  - GPIO 34-39  ── input only, no output
+  - Most GPIOs are flexible — digital, analog, SPI, I2C, PWM
+  - ADC pins can do analog AND digital — not analog only
+  - Hardware SPI (VSPI) defaults: SCK=18, MISO=19, MOSI=23
+
+Board Identified
+  - Wemos D1 R32 with ESP32-WROOM-32 module
+  - Has dedicated SPI header: SCK(IO18) MISO(IO19) MOSI(IO23)
+  - WARNING: SD2/SD3/CMD/CLK/SDO/SD1 row = internal flash,
+    never use this row despite being labeled SPI
+  - IO2 and IO4 appear in analog section but are digital capable
+  - IO15, IO33, IO32 are solder pads — not breadboard friendly
+
+HARDWARE & WIRING
+----------------------------------------------------------------
+Components
+  - Wemos D1 R32 (ESP32-WROOM-32)
+  - CC1101 433MHz transceiver module
+  - External breadboard power supply module
+  - Breadboard + jumper wires
+
+Final Pin Assignment
+  CC1101    ESP32
+  VCC    →  External supply 3.3V
+  GND    →  External supply GND
+  SCK    →  IO18  (shared with display on breadboard row)
+  MISO   →  IO19  (CC1101 only — display is write only)
+  MOSI   →  IO23  (shared with display on breadboard row)
+  CSN    →  IO13  (IO5 occupied by Hazem's display)
+  GDO0   →  IO2
+  GDO2   →  unconnected
+
+Critical Discovery — Common Ground
+  - External supply GND bridged to ESP32 GND pin
+  - Hazem's display wasn't working due to missing common ground
+  - Fixed by adding the bridge wire
+  - Rule: every component in a circuit must share common ground
+
+SOFTWARE & ENVIRONMENT
+----------------------------------------------------------------
+  - PlatformIO installed in VS Code
+  - Project created: rf-flipper
+  - Board: Espressif ESP32 Dev Module
+  - Framework: Arduino
+  - Library installed: SmartRC-CC1101-Driver-Lib @ 3.0.1
+
+platformio.ini
+  [env:esp32dev]
+  platform = espressif32
+  board = esp32dev
+  framework = arduino
+  monitor_speed = 115200
+  lib_deps =
+      SmartRC-CC1101-Driver-Lib
+
+Code Written — main.cpp
+  - File header comment with description and full wiring map
+  - Includes: Arduino.h, ELECHOUSE_CC1101_SRC_DRV.h
+  - Pin definitions: CSN_PIN=13, GDO0_PIN=2
+  - setup() with Serial.begin(115200) and startup banner
+  - Empty loop() placeholder
+  - Compiled successfully — zero errors
+  - RAM: 6.6% / Flash: 20.4%
+
+================================================================
+HAZEM — DISPLAY & UI
+================================================================
+
+OBJECTIVE
+----------------------------------------------------------------
+Set up the development environment and establish the foundation
+for the display layer using a 1.8" SPI TFT wired to an ESP32,
+culminating in a Hello World render on screen.
+
+CONCEPTS LEARNED
+----------------------------------------------------------------
+SPI Protocol (Display Side)
+  - SPI is the communication protocol between ESP32 and display
+  - Master/Slave model — ESP32 is master, display is slave
+  - Wires used:
+      SCK   ── clock, syncs communication
+      MOSI  ── ESP32 → display, sends pixel data
+      CS    ── chip select, tells display to listen
+      DC    ── data/command, tells display type of incoming data
+      RST   ── reset, reboots the display controller
+  - MISO not needed — display is write only, never talks back
+  - DC and RST are extra control pins specific to TFT displays,
+    not standard SPI signals
+
+Why IO2 Is Risky
+  - IO2 is a strapping pin on ESP32
+  - Affects boot behavior — can cause unpredictable issues
+  - Safe alternatives: IO27, IO26, IO25, IO32
+  - IO27 chosen as replacement for DC pin
+
+Power — BL Pin
+  - BL = backlight LED, needs 3.3V not GND
+  - Screen will be completely dark if BL is grounded
+  - VCC and BL both need 3.3V — bridge both into same
+    breadboard power rail row
+
+CS Pin Importance
+  - Without CS connected the display won't respond on SPI bus
+  - Easy to miss since basic sensor modules often skip CS
+  - Display CS wired to IO5
+
+Common Ground Note
+  - Adam discovered this during his session — critical rule:
+    every component must share a common GND reference
+  - External supply GND must be bridged to ESP32 GND pin
+  - Will apply this when CC1101 is added to the circuit
+
+HARDWARE & WIRING
+----------------------------------------------------------------
+Components
+  - Wemos D1 R32 (ESP32-WROOM-32)
+  - 1.8" SPI TFT display 128x160 (ST7735 driver)
+  - External power supply
+  - Breadboard + jumper wires
+
+Final Pin Assignment
+  Display   ESP32
+  VCC    →  3.3V
+  GND    →  GND
+  SCL    →  IO18  (SPI clock, shared with CC1101)
+  SDA    →  IO23  (SPI MOSI, shared with CC1101)
+  CS     →  IO5   (chip select, display only)
+  DC     →  IO26  (data/command, display only)
+  RES    →  IO4   (reset, display only)
+  BL     →  3.3V  (backlight, direct power, no code needed)
+
+SOFTWARE & ENVIRONMENT
+----------------------------------------------------------------
+  - PlatformIO installed in VS Code
+  - Project created: rf_device
+  - Board: Espressif ESP32 Dev Module
+  - Framework: Arduino
+  - Library installed: TFT_eSPI @ 2.5.43
+
+platformio.ini
+  [env:esp32dev]
+  platform = espressif32
+  board = esp32dev
+  framework = arduino
+  monitor_speed = 115200
+  upload_speed = 115200
+  lib_deps =
+      bodmer/TFT_eSPI
+
+User_Setup.h Configuration
+  - Located: .pio/libdeps/esp32dev/TFT_eSPI/User_Setup.h
+  - Defined at top:
+      #define ST7735_DRIVER
+      #define TFT_WIDTH  128
+      #define TFT_HEIGHT 160
+      #define TFT_CS     5
+      #define TFT_DC     27
+      #define TFT_RST    4
+      #define TFT_MOSI   23
+      #define TFT_SCLK   18
+  - Commented out ILI9341_DRIVER default
+  - Commented out duplicate PIN_D definitions at lines 180-185
+  - Warning: TOUCH_CS not defined — expected, not needed
+
+Code Written — main.cpp
+  - Includes: Arduino.h, TFT_eSPI.h
+  - TFT_eSPI tft object instantiated
+  - setup(): Serial init, tft.init(), fillScreen black,
+    drawString "Hello World!" in white size 2 at (10,10)
+  - Empty loop() placeholder
+  - Compiled successfully — zero errors
+  - RAM: 6.7% / Flash: 24.3%
+
+================================================================
+SHARED DECISIONS
+================================================================
+
+Architecture
+----------------------------------------------------------------
+  - Adam handles RF capture — CC1101 side
+  - Hazem handles display output — TFT side
+  - Both working on same ESP32 board
+  - Code will be merged after individual parts are verified
+
+Shared SPI Bus
+----------------------------------------------------------------
+  - SCK  IO18  ── shared between CC1101 and display
+  - MOSI IO23  ── shared between CC1101 and display
+  - MISO IO19  ── CC1101 only (display is write only)
+  - Each device has its own dedicated CS pin:
+      IO13  ── CC1101  (Adam)
+      IO5   ── Display (Hazem)
+
+Power
+----------------------------------------------------------------
+  - External breadboard power supply used for peripherals
+  - 3.3V rail powers CC1101 and display
+  - Common GND bridged to ESP32 GND — critical for stability
+  - BL pin on display connected directly to 3.3V rail
+
+Repository
+----------------------------------------------------------------
+  - Name      : ghostwave
+  - Visibility : Public
+  - Both team members added as collaborators
+  - docs/ folder created for session logs
+
+================================================================
+ISSUES & BLOCKERS
+================================================================
+
+Blocker — USB Cable (affects both)
+----------------------------------------------------------------
+  - Status  : UNRESOLVED — affects both Adam and Hazem
+  - Problem : ESP32 not detected by Windows on either setup
+  - Cause   : All available micro USB cables are charge-only
+  - Impact  : Cannot upload code or test on either side
+  - Fix     : Source a data-capable micro USB cable
+              Windows will play recognition sound on connect
+  - Next    : Try phone charger cables, borrow or buy one
+
+================================================================
+NEXT SESSION PLAN
+================================================================
+
+Adam (RF side)
+  1. Resolve USB cable blocker
+  2. Upload code, verify Serial monitor startup banner
+  3. Add CC1101 initialization to setup()
+  4. Verify CC1101 detected on SPI bus
+  5. Add GDO0 monitoring and receive loop
+  6. Test with a real 433MHz signal source
+
+Hazem (Display side)
+  1. Resolve USB cable blocker
+  2. Upload Hello World, confirm display renders correctly
+  3. Fix any remaining User_Setup.h pin conflicts
+  4. Build basic navigation menu with 4-6 buttons
+  5. Integrate display branch with Adam's CC1101 branch
+
+Both
+  1. Push individual code to ghostwave repo
+  2. Define branching strategy:
+       main        ── stable merged code only
+       adam-rf     ── CC1101 signal capture work
+       hazem-lcd   ── display interface work
+  3. Begin planning code merge strategy
+  4. Set up docs/ folder with session logs
+
+================================================================
+SESSION STATUS : PAUSED — PENDING USB CABLE (BOTH SIDES)
+================================================================
