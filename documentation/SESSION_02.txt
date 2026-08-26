@@ -1,0 +1,164 @@
+================================================================
+Ghostwave — Project Log
+================================================================
+Date        : 26/08/2026
+Session     : 02
+================================================================
+Team
+----------------------------------------------------------------
+Adam      ──  RF & Signal Capture (ESP32 + CC1101)
+Hazem     ──  Display & UI (ESP32 + TFT Display)
+================================================================
+
+SESSION FOCUS
+----------------------------------------------------------------
+Both team members focused on Hazem's display side this session.
+Extensive debugging of the 1.8" ST7735 TFT display.
+
+================================================================
+HAZEM — DISPLAY DEBUGGING
+================================================================
+
+OBJECTIVE
+----------------------------------------------------------------
+Resolve black screen issue on 1.8" ST7735 TFT display and
+achieve a visible Hello World render.
+
+DEBUGGING PROCESS
+----------------------------------------------------------------
+Upload Issue Resolved
+  - Data capable USB cable sourced
+  - ESP32 detected on COM5
+  - Code uploading successfully
+  - Serial monitor confirmed working at 115200 baud
+
+Software Fixes Attempted
+  - ST7735_DRIVER uncommented in User_Setup.h
+    (was not defined at all — root cause of first black screen)
+  - Tried all tab variants one at a time:
+      ST7735_BLACKTAB  ──  no result
+      ST7735_GREENTAB  ──  no result
+      ST7735_REDTAB    ──  no result
+  - RST pin set to -1 to rule out reset issue  ──  no result
+  - DC pin moved from IO27 to IO26
+    (IO27 label was cut off on board, misidentified)
+  - User_Setup.h bypassed entirely via platformio.ini
+    build_flags — confirmed pin definitions correct
+  - SPI frequency reduced from 27MHz to 4MHz  ──  no result
+
+Hardware Verification
+  - Multimeter used to verify:
+      VCC  →  3.3V  ✓
+      BL   →  3.3V  ✓
+      GND  →  common ground confirmed ✓
+  - All wiring verified and reconfirmed:
+      GND  →  ESP32 GND
+      VCC  →  3.3V
+      BL   →  3.3V external supply
+      CLK  →  IO18
+      SDA  →  IO23
+      CS   →  IO5
+      DC   →  IO26
+      RST  →  IO4
+  - Serial monitor confirmed:
+      "Booting..."           ✓
+      "Display initialized." ✓
+    Code runs fine, SPI communication working
+
+Display Verdict
+----------------------------------------------------------------
+  - Independent backlight test performed:
+      VCC and BL connected to 3.3V, GND connected
+      No glow — backlight completely dead
+  - Conclusion: ST7735 display module is physically dead
+  - Likely cause: BL connected to wrong voltage at some point
+    or dead on arrival unit
+
+Backup Display — 0802A Character LCD
+----------------------------------------------------------------
+  - 0802A character LCD discovered as backup
+  - Independent backlight test performed — backlight alive
+  - Specs:
+      8 characters x 2 rows
+      Text only — no graphics
+      Parallel/I2C interface, not SPI
+      Different library required
+  - Verdict: too limited for Ghostwave UI
+    Cannot display menus, signal visualizations, or graphics
+
+================================================================
+SHARED DECISIONS
+================================================================
+
+Display Strategy
+----------------------------------------------------------------
+  - ST7735 replacement to be ordered ($3-5 on AliExpress)
+  - 0802A will not be used — too limited for project needs
+  - Display development paused until replacement arrives
+  - Both team members shift focus to RF core functionality
+
+Project Priority Reorder
+----------------------------------------------------------------
+  New focus order:
+  1. CC1101 RF signal capture  ──  detect and print to Serial
+  2. Signal storage            ──  save captures to memory
+  3. Signal replay             ──  transmit stored signal
+  4. Display UI                ──  added last on top of core
+
+Hardware Capabilities Confirmed
+----------------------------------------------------------------
+CC1101 Frequency Range
+  - Not limited to 433MHz
+  - Full range: 300MHz - 915MHz
+  - Common targets:
+      433MHz  ──  car keys, garage doors, weather stations
+      315MHz  ──  older car remotes, US market devices
+      868MHz  ──  European IoT, smart meters
+      915MHz  ──  US IoT devices, LoRa
+
+Planned Features
+  - Potentiometer for real time frequency adjustment
+      mapped across 300-915MHz range
+  - IR capture planned as future addition
+      requires separate IR module (e.g. TSOP38238)
+      CC1101 handles RF only, not infrared
+
+================================================================
+ISSUES & BLOCKERS
+================================================================
+
+Blocker — ST7735 Display Dead
+----------------------------------------------------------------
+  - Status  : ACTIVE
+  - Problem : Display backlight and panel physically dead
+  - Fix     : Order replacement 1.8" ST7735 module
+  - Impact  : Display development paused
+  - Next    : Resume when replacement arrives
+
+================================================================
+NEXT SESSION PLAN
+================================================================
+
+Adam (RF side)
+  1. Upload current code to ESP32
+  2. Verify CC1101 detected on SPI bus
+  3. Add GDO0 monitoring and receive loop
+  4. Capture first raw RF signal and print to Serial
+  5. Begin signal storage implementation
+
+Hazem (Display side)
+  1. Order ST7735 replacement display
+  2. Assist Adam with RF side while waiting
+  3. Resume display work when replacement arrives
+  4. Build navigation menu UI on confirmed working display
+
+Both
+  1. Push all code to ghostwave GitHub repo
+  2. Set up branching strategy:
+       main       ── stable merged code only
+       adam-rf    ── CC1101 signal capture work
+       hazem-lcd  ── display interface work
+
+================================================================
+SESSION STATUS : COMPLETE
+================================================================
