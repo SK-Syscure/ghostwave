@@ -1,0 +1,236 @@
+================================================================
+Ghostwave — Project Log
+================================================================
+Date        : 29/08/2026
+Session     : 03
+================================================================
+Team
+----------------------------------------------------------------
+Adam      ──  RF & Signal Capture (ESP32 + CC1101)
+Hazem     ──  Display & UI (ESP32 + TFT Display)
+================================================================
+
+SESSION FOCUS
+----------------------------------------------------------------
+Both team members focused on Adam's RF side this session.
+First serious attempt at getting CC1101 detected on SPI bus.
+Extensive hardware debugging throughout.
+
+================================================================
+HARDWARE DECISIONS & PLANNING
+================================================================
+
+ESP32 Board Selection
+----------------------------------------------------------------
+  - Three ESP32 boards available:
+      Wemos D1 R32        ──  original board, Uno form factor
+      ESP32-WROOM-32      ──  standard 38 pin, CP2102 USB chip
+      ESP32-WROOM-32UE    ──  selected for Ghostwave
+  - WROOM-32UE chosen because:
+      External IPEX/U.FL antenna connector for future WiFi/BT
+      Clean pin labels
+      Same GPIO layout as all previous work
+  - WROOM-32UE requires BOOT button hold during upload
+    Does not auto-reset into download mode
+  - Sequence: run upload → hold BOOT when "Connecting..."
+    appears → release when progress bars start
+
+Components Ordered This Session
+----------------------------------------------------------------
+  - 2x CC1101 433MHz modules       ──  replacement + spare
+  - 2x ST7735B TFT displays        ──  replacement + spare
+  - 10x IPEX U.FL 2.4GHz antennas  ──  for ESP32-UE WiFi/BT
+  - All ordered via AliExpress, delivery 1-2 weeks
+
+Future Hardware Planned
+----------------------------------------------------------------
+  - Large breadboard (830+ point, MB-102 style)
+  - Buttons already available (UP/DOWN/LEFT/RIGHT/SELECT)
+  - SD card module already available (MH-SD Card Module)
+  - Potentiometer already available (frequency adjustment)
+  - CC1101 wire antenna: 17.3cm copper wire, quarter wave DIY
+  - IPEX U.FL 2.4GHz antenna for ESP32-UE WiFi/BT ordered
+
+RF Capabilities Confirmed
+----------------------------------------------------------------
+  - CC1101 range: 300MHz - 928MHz, not locked to 433MHz
+  - Common targets:
+      433MHz  ──  car keys, garage doors, weather stations
+      315MHz  ──  older US market remotes
+      868MHz  ──  European IoT, smart meters
+      915MHz  ──  US IoT, LoRa
+  - IR not supported by CC1101
+    Requires separate module (e.g. TSOP38238) — future addition
+  - Potentiometer frequency control planned:
+      analogRead mapped across 300-928MHz range
+      Real time frequency adjustment while scanning
+
+GitHub Organisation
+----------------------------------------------------------------
+  - SK-Syscure organisation created on GitHub
+  - Name combines "Systems" and "Security"
+  - Ghostwave repo to be moved under SK-Syscure
+
+================================================================
+SCHEMATIC & WIRING DOCUMENTATION
+================================================================
+
+Full Circuit Schematic
+----------------------------------------------------------------
+  - Author    : Hazem
+  - Tool      : Hand drawn on iPad
+  - Contents  : Full circuit diagram showing:
+      ESP32-WROOM-32UE
+      CC1101 433MHz transceiver
+      ST7735B TFT display
+      MH-SD card module
+      External breadboard power supply
+      All wire connections between components
+      Shared SPI bus routing
+      Power and GND rails
+
+Pin Assignment Table
+----------------------------------------------------------------
+  ESP32 Pin   Connects To              Role
+  ─────────────────────────────────────────────────────────
+  GPIO18      CC1101 SCK + TFT SCL    Shared SPI clock
+  GPIO19      CC1101 MISO             CC1101 only
+  GPIO23      CC1101 MOSI + TFT SDA   Shared SPI data
+  GPIO15      CC1101 CSN              CC1101 chip select
+  GPIO25      CC1101 GDO0             Data ready flag
+  GPIO5       TFT CS                  Display chip select
+  GPIO27      TFT DC                  Data/command
+  GPIO4       TFT RST                 Display reset
+  GPIO13      SD card CS              SD card chip select
+  ─────────────────────────────────────────────────────────
+  3.3V        CC1101 VCC, TFT VCC,    Power rail
+              TFT BL
+  GND         CC1101 GND, TFT GND,    Common ground
+              ESP32 GND, supply GND
+
+================================================================
+ADAM — RF & SIGNAL CAPTURE
+================================================================
+
+OBJECTIVE
+----------------------------------------------------------------
+Get CC1101 detected on SPI bus and print confirmation
+to Serial monitor. First step toward live RF signal capture.
+
+CODE STATUS
+----------------------------------------------------------------
+main.cpp current state:
+  - File header comment with full wiring map
+  - Includes: Arduino.h, ELECHOUSE_CC1101_SRC_DRV.h
+  - Pin definitions:
+      CSN_PIN   = 15
+      GDO0_PIN  = 25
+  - rxBuffer[64] and rxLength declared
+  - setup():
+      Serial.begin(115200)
+      Startup banner: "=== Ghostwave — RF Receiver ==="
+      setSpiPin(18, 19, 23, CSN_PIN)
+      setGDO(GDO0_PIN, 4)
+      getCC1101() detection check
+      Prints [OK] if found, [FAIL] and halts if not
+  - Empty loop() placeholder
+  - Compiles successfully — zero errors
+
+DEBUGGING PROCESS
+----------------------------------------------------------------
+Upload Issue Resolved
+  - WROOM-32UE does not auto-reset into download mode
+  - Fix: hold BOOT button when "Connecting..." appears
+  - Uploads reliably with this method confirmed
+
+CC1101 Detection — Full Debugging Log
+  - Tried CSN on GPIO5, GPIO13, GPIO15  ──  all failed
+  - Tried GDO0 on GPIO2, GPIO25        ──  irrelevant for detection
+  - Tried MOSI/MISO physically swapped  ──  failed
+  - Tried external power supply         ──  failed
+  - Tried direct ESP32 3.3V power       ──  failed
+  - Continuity tested all SPI wires     ──  all confirmed good
+  - Voltage on CC1101 VCC confirmed: 3.25V
+
+Critical Discovery — Power Supply Battery
+  - External power supply battery was not connected
+  - Green LED on supply was lit but no stable output
+  - Connected battery — CC1101 still failed to detect
+  - Switched to direct ESP32 3.3V — still failed
+
+MISO Voltage Test
+  - Multimeter on CC1101 MISO pin while ESP32 running
+  - Reads 0.05V — essentially 0V
+  - CC1101 completely unresponsive on SPI
+
+CC1101 Wiring Verified
+  - JST connector used on CC1101 module
+  - 6 wires confirmed: VCC, GND, SCK, MOSI, MISO, CSN
+  - GDO0 and GDO2 intentionally unconnected for this test
+  - All 6 wires continuity tested and confirmed
+  - Wiring is correct — module is the problem
+
+CC1101 Verdict
+----------------------------------------------------------------
+  - All wiring confirmed correct and continuous
+  - Power confirmed at 3.25V
+  - MISO reads 0V — chip completely unresponsive
+  - Conclusion: CC1101 module is dead/DOA
+  - 2x replacement modules already ordered
+
+================================================================
+HAZEM — DISPLAY & UI
+================================================================
+
+No display work this session.
+Fully focused on assisting Adam with RF debugging.
+Waiting for ST7735B replacement display to arrive.
+
+================================================================
+ISSUES & BLOCKERS
+================================================================
+
+Blocker 1 — CC1101 Dead
+----------------------------------------------------------------
+  - Status  : ACTIVE
+  - Problem : CC1101 module not responding on SPI
+  - Cause   : Dead/DOA module confirmed after full debug
+  - Fix     : 2x replacement modules ordered
+  - Impact  : RF capture completely blocked
+
+Blocker 2 — ST7735 Display Dead
+----------------------------------------------------------------
+  - Status  : ACTIVE (carried from session 02)
+  - Problem : Display backlight and panel physically dead
+  - Fix     : 2x replacement ST7735B displays ordered
+  - Impact  : Display development blocked
+
+================================================================
+NEXT SESSION PLAN
+================================================================
+
+Adam (RF side)
+  1. Wire new CC1101 module when it arrives
+  2. Verify [OK] CC1101 detected on SPI
+  3. Add RF configuration to setup()
+  4. Add GDO0 monitoring and receive loop
+  5. Capture first raw 433MHz signal
+  6. Print raw bytes + RSSI to Serial monitor
+
+Hazem (Display side)
+  1. Wire new ST7735B display when it arrives
+  2. Verify Hello World renders correctly
+  3. Build basic navigation menu UI
+  4. Begin integrating display with RF side
+
+Both
+  1. Move ghostwave repo under SK-Syscure organisation
+  2. Push all current code to GitHub
+  3. Define branching strategy:
+       main       ──  stable merged code only
+       adam-rf    ──  CC1101 signal capture work
+       hazem-lcd  ──  display interface work
+
+================================================================
+SESSION STATUS : BLOCKED — AWAITING HARDWARE DELIVERY
+================================================================

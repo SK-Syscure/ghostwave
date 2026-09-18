@@ -1,0 +1,79 @@
+================================================================
+Ghostwave — Project Log
+================================================================
+Date        : [fill in today's date]
+Session     : 04
+================================================================
+Team
+----------------------------------------------------------------
+Hazem     ──  Display & UI (ESP32 + TFT Display) — solo session
+================================================================
+
+SESSION FOCUS
+----------------------------------------------------------------
+Solo session. Resolved the ST7735 white-screen issue that came
+up with the new replacement display this session. Also closes
+out a ~1 month blocker — original display was faulty hardware,
+this session confirmed the replacement + found a real config
+bug underneath it.
+
+================================================================
+DEBUGGING PROCESS
+================================================================
+
+Starting Point
+----------------------------------------------------------------
+  - New ST7735B replacement display wired in (CS 5, DC 27,
+    RST 4, MOSI 23, SCLK 18 — matching schematic from session 03)
+  - tft.init() completing successfully, all fillScreen() and
+    drawString() calls executing without crashing (confirmed
+    via Serial output)
+  - Display output: solid white screen regardless of color
+    or content sent — tried multiple ST7735 tab-variant
+    changes (GREENTAB, GREENTAB2/3, BLACKTAB, REDTAB) and
+    TFT_INVERSION_ON/OFF combinations in User_Setup.h, none
+    of which changed the output at all
+
+Root Cause Found (Hazem)
+----------------------------------------------------------------
+  - Reviewed platformio.ini and identified that build_flags
+    included -DUSER_SETUP_LOADED=1
+  - This flag tells TFT_eSPI to ignore User_Setup.h completely
+    and pull all display config from build_flags instead
+  - Meant every tab-variant and inversion change made in
+    User_Setup.h during troubleshooting was compiled but never
+    actually applied — none of it ever reached the display driver
+  - Also caught a DC pin mismatch: build_flags had TFT_DC=26
+    while wiring and User_Setup.h both used GPIO27
+
+Fix Applied
+----------------------------------------------------------------
+  Moved working config directly into platformio.ini build_flags:
+    - ST7735_DRIVER=1
+    - ST7735_GREENTAB=1
+    - TFT_INVERSION_ON=1
+    - TFT_WIDTH=128 / TFT_HEIGHT=160
+    - TFT_CS=5, TFT_DC=27, TFT_RST=4, TFT_MOSI=23, TFT_SCLK=18
+    - LOAD_GLCD=1, LOAD_FONT2=1
+    - SPI_FREQUENCY=4000000
+
+RESULT
+----------------------------------------------------------------
+Display fully functional — confirmed color fills and text
+rendering working correctly via tft.fillScreen() and
+tft.drawString().
+
+Root cause identified independently by Hazem after reviewing
+the build configuration — caught that build_flags were
+silently overriding User_Setup.h, which meant no tab-variant
+testing done this session had actually been reaching the driver.
+
+STATUS
+----------------------------------------------------------------
+Display bring-up: COMPLETE (original DOA display replaced,
+new display config bug found and fixed same session)
+Next: wire CC1101 init into setup(), GDO0 monitoring, RF capture
+
+================================================================
+SESSION STATUS : DISPLAY UNBLOCKED — RESUME NORMAL DEVELOPMENT
+================================================================
