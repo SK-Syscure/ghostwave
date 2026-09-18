@@ -1,31 +1,47 @@
-#include <Arduino.h>    // Core Arduino functions (pinMode, Serial, etc.)
-#include <TFT_eSPI.h>   // TFT display library by Bodmer
+#include <Arduino.h>
+#include <TFT_eSPI.h>
 
-// Create a display object — this is your interface to the screen
 TFT_eSPI tft = TFT_eSPI();
 
 void setup() {
-  // setup() runs ONCE when the microcontroller powers on or resets
-
-  // Start serial communication at 115200 baud (for debugging via USB)
   Serial.begin(115200);
-  Serial.println("Booting...");  // Print to Serial Monitor, not the screen
+  delay(500);
+  Serial.println("Booting...");
 
-  tft.init();           // Initialize the display hardware
-  tft.setRotation(1);   // Rotate screen: 0=portrait, 1=landscape, 2,3=flipped
-  tft.fillScreen(TFT_BLACK);  // Clear screen by filling it black
+  tft.init();
+  tft.setRotation(1);
 
-  // Set text color to WHITE with BLACK background (background prevents artifacts)
+  Serial.println("Display init done. Starting color test...");
+
+  // Cycle through primary colors — confirms SPI/CS/DC/CLK/MOSI all work
+  tft.fillScreen(TFT_RED);
+  Serial.println("RED");
+  delay(1000);
+
+  tft.fillScreen(TFT_GREEN);
+  Serial.println("GREEN");
+  delay(1000);
+
+  tft.fillScreen(TFT_BLUE);
+  Serial.println("BLUE");
+  delay(1000);
+
+  tft.fillScreen(TFT_BLACK);
+
+  // Now test text rendering
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setTextSize(2);   // Font scale: 1=small, 2=medium, 3=large, etc.
-
-  // Draw "Hello World!" starting at pixel position x=10, y=10
+  tft.setTextSize(2);
   tft.drawString("Hello World!", 10, 10);
+  tft.drawString("Ghostwave", 10, 40);
 
-  Serial.println("Display initialized.");
+  Serial.println("Text drawn. If you see this on Serial but NOT on screen,");
+  Serial.println("the issue is DC/CS/RST wiring, not power.");
 }
 
 void loop() {
-  // loop() runs FOREVER after setup()
-  // Empty here — the display holds its content without needing refresh
+  // Blink a border rectangle every second so you know it's alive, not frozen
+  static bool on = false;
+  tft.drawRect(0, 0, tft.width(), tft.height(), on ? TFT_YELLOW : TFT_BLACK);
+  on = !on;
+  delay(1000);
 }
