@@ -1,0 +1,112 @@
+================================================================
+Ghostwave — Project Log
+================================================================
+Date        : 2026-10-02
+Session     : 05
+================================================================
+Team
+----------------------------------------------------------------
+Hazem     ──  RF Scanner + Display & UI — solo session
+================================================================
+
+SESSION FOCUS
+----------------------------------------------------------------
+Solo session. Built the nRF24 RF scanner into a working live
+TFT interface, added the scanner boot animation and activity
+gradient, then refactored the scanner into a separate C++ module.
+
+Main focus was moving from a working prototype toward a cleaner
+embedded software architecture.
+
+================================================================
+RF SCANNER
+================================================================
+
+Scanner Implementation
+----------------------------------------------------------------
+  - Scans all 126 nRF24 channels
+  - Takes 20 RPD measurements per channel
+  - Converts detections into a 0.0–1.0 activity value
+  - Stores results in activity[126]
+  - Renders one bar per channel on the TFT
+  - Confirmed testRPD() is threshold-based RF energy detection,
+    not true multi-level RSSI
+  - Confirmed radio.available() detects valid nRF24 packets,
+    not generic RF energy
+
+Graph / Visualization
+----------------------------------------------------------------
+  - Centered graph on the 160×128 rotated display
+  - GRAPH_LEFT = 16
+  - GRAPH_TOP = 16
+  - GRAPH_BOTTOM = 106
+  - Added channel labels: 20, 40, 60, 80, 100
+  - Added cyan → green → red activity gradient
+  - Added graph clearing between scans so stale bars disappear
+  - Corrected clearing region to include channel 0
+
+================================================================
+BOOT ANIMATION
+================================================================
+
+RF Scanner Intro
+----------------------------------------------------------------
+  - Added "RF SCANNER" title
+  - Added custom 24×24 skull bitmap
+  - Added fake progress bar with percentage
+  - Added final cyan skull flash
+  - Animation transitions into the live scanner
+
+Result
+----------------------------------------------------------------
+Boot animation fully tested and working on hardware.
+
+================================================================
+SOFTWARE ARCHITECTURE
+================================================================
+
+Decision Made (Hazem)
+----------------------------------------------------------------
+  - main.cpp was becoming too large
+  - Separated the scanner into its own module:
+
+      src/
+      ├── main.cpp
+      ├── RFScanner.cpp
+      └── RFScanner.h
+
+  - RFScanner.h exposes only:
+      rfScannerSetup()
+      rfScannerLoop()
+
+  - RFScanner.cpp contains the RF24, TFT, scanner state,
+    animation, visualization and implementation details
+  - main.cpp now acts only as the application entry point
+
+Architecture Principle
+----------------------------------------------------------------
+  - Header = public interface
+  - CPP = implementation details
+  - Internal helpers and hardware objects remain private to
+    RFScanner.cpp unless another module actually needs them
+
+================================================================
+RESULT
+================================================================
+
+RF scanner: WORKING
+TFT visualization: WORKING
+Activity gradient: WORKING
+Boot animation: WORKING
+126-channel scanning: WORKING
+Module separation: IMPLEMENTED
+SPI sharing: WORKING
+
+================================================================
+STATUS
+----------------------------------------------------------------
+RF scanner prototype: COMPLETE
+Software architecture: MODULARIZED
+================================================================
+SESSION STATUS : RF SCANNER WORKING — MODULE ARCHITECTURE ESTABLISHED
+================================================================
