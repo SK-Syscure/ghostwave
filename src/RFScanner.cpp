@@ -9,7 +9,7 @@ TFT_eSPI tft = TFT_eSPI();
 #define CE_PIN 4
 #define CS_PIN 25
 
-RF24 radio(CE_PIN, CS_PIN);
+RF24 scannerRadio(CE_PIN, CS_PIN);
 
 const int SAMPLES = 20;
 float activity[126];
@@ -18,46 +18,45 @@ const int GRAPH_TOP = 16;
 const int GRAPH_BOTTOM = 106;
 const int GRAPH_LEFT = 16;
 
-const uint8_t skull[] PROGMEM = 
-{
-    // Top bones
-    0b11110000, 0b00000000, 0b00011110,
-    0b11111000, 0b00000000, 0b00111110,
-    0b11111100, 0b00000000, 0b01111110,
-    0b01111100, 0b00000000, 0b01111100,
-    
-    // Top of skull
-    0b00111111, 0b11111111, 0b11111000,
-    0b00011111, 0b11111111, 0b11110000,
-    0b00000111, 0b11111111, 0b11000000,
-    0b00001111, 0b11111111, 0b11100000,
-    0b00001111, 0b11111111, 0b11100000,
-    0b00001111, 0b11111111, 0b11100000,
-    
-    // Eyes (with bottom outer-corner cuts)
-    0b00001100, 0b00111000, 0b01100000,
-    0b00001100, 0b00111000, 0b01100000,
-    0b00001110, 0b00111000, 0b11100000,
-    
-    // Nose
-    0b00001111, 0b11101111, 0b11100000,
-    0b00001111, 0b11101111, 0b11100000,
-    
-    // Cheek tapers to jaw
-    0b00000111, 0b11111111, 0b11000000,
-    0b00000011, 0b11111111, 0b10000000,
-    
-    // Teeth (4 teeth, 3 gaps)
-    0b00000011, 0b01101101, 0b10000000,
-    0b00000011, 0b01101101, 0b10000000,
-    0b00000011, 0b01101101, 0b10000000,
-    
-    // Bottom bones
-    0b01111100, 0b00000000, 0b01111100,
-    0b11111100, 0b00000000, 0b01111110,
-    0b11111000, 0b00000000, 0b00111110,
-    0b11110000, 0b00000000, 0b00011110
-};
+const uint8_t skull[] PROGMEM =
+    {
+        // Top bones
+        0b11110000, 0b00000000, 0b00011110,
+        0b11111000, 0b00000000, 0b00111110,
+        0b11111100, 0b00000000, 0b01111110,
+        0b01111100, 0b00000000, 0b01111100,
+
+        // Top of skull
+        0b00111111, 0b11111111, 0b11111000,
+        0b00011111, 0b11111111, 0b11110000,
+        0b00000111, 0b11111111, 0b11000000,
+        0b00001111, 0b11111111, 0b11100000,
+        0b00001111, 0b11111111, 0b11100000,
+        0b00001111, 0b11111111, 0b11100000,
+
+        // Eyes (with bottom outer-corner cuts)
+        0b00001100, 0b00111000, 0b01100000,
+        0b00001100, 0b00111000, 0b01100000,
+        0b00001110, 0b00111000, 0b11100000,
+
+        // Nose
+        0b00001111, 0b11101111, 0b11100000,
+        0b00001111, 0b11101111, 0b11100000,
+
+        // Cheek tapers to jaw
+        0b00000111, 0b11111111, 0b11000000,
+        0b00000011, 0b11111111, 0b10000000,
+
+        // Teeth (4 teeth, 3 gaps)
+        0b00000011, 0b01101101, 0b10000000,
+        0b00000011, 0b01101101, 0b10000000,
+        0b00000011, 0b01101101, 0b10000000,
+
+        // Bottom bones
+        0b01111100, 0b00000000, 0b01111100,
+        0b11111100, 0b00000000, 0b01111110,
+        0b11111000, 0b00000000, 0b00111110,
+        0b11110000, 0b00000000, 0b00011110};
 
 void introAnimation()
 {
@@ -79,7 +78,6 @@ void introAnimation()
 
     delay(400);
 
-
     // Skull appears
     tft.drawBitmap(
         skullX,
@@ -88,11 +86,9 @@ void introAnimation()
         24,
         24,
         TFT_BLACK,
-        TFT_WHITE
-    );
+        TFT_WHITE);
 
     delay(400);
-
 
     // Fake boot progress
     for (int progress = 0; progress <= 100; progress += 5)
@@ -105,8 +101,7 @@ void introAnimation()
             barY,
             barWidth,
             barHeight,
-            TFT_WHITE
-        );
+            TFT_WHITE);
 
         // Draw the progress
         tft.fillRect(
@@ -114,8 +109,7 @@ void introAnimation()
             barY,
             filledWidth,
             barHeight,
-            TFT_GREEN
-        );
+            TFT_GREEN);
 
         // Draw percentage
         tft.fillRect(
@@ -123,8 +117,7 @@ void introAnimation()
             88,
             30,
             10,
-            TFT_WHITE
-        );
+            TFT_WHITE);
 
         tft.setTextColor(TFT_BLACK, TFT_WHITE);
         tft.setTextSize(1);
@@ -135,15 +128,13 @@ void introAnimation()
         delay(70);
     }
 
-
     // Final skull flash
     tft.fillRect(
         skullX,
         skullY,
         24,
         24,
-        TFT_WHITE
-    );
+        TFT_WHITE);
 
     tft.drawBitmap(
         skullX,
@@ -152,8 +143,7 @@ void introAnimation()
         24,
         24,
         TFT_CYAN,
-        TFT_WHITE
-    );
+        TFT_WHITE);
 
     delay(120);
 
@@ -162,8 +152,7 @@ void introAnimation()
         skullY,
         24,
         24,
-        TFT_WHITE
-    );
+        TFT_WHITE);
 
     tft.drawBitmap(
         skullX,
@@ -172,8 +161,7 @@ void introAnimation()
         24,
         24,
         TFT_BLACK,
-        TFT_WHITE
-    );
+        TFT_WHITE);
 
     delay(300);
 }
@@ -211,7 +199,7 @@ void rfScannerSetup()
     Serial.begin(115200);
 
     // Initialize nRF24 first
-    if (!radio.begin())
+    if (!scannerRadio.begin())
     {
         Serial.println("nRF24 initialization failed!");
 
@@ -223,9 +211,14 @@ void rfScannerSetup()
 
     Serial.println("nRF24 initialized!");
 
-    radio.startListening();
+    Serial.print("Chip connected: ");
+    Serial.println(scannerRadio.isChipConnected() ? "YES" : "NO");
 
-    // Initialize TFT after the radio
+    scannerRadio.printDetails();
+
+    scannerRadio.startListening();
+
+    // Initialize TFT after the scannerRadio
     tft.init();
     tft.setRotation(1);
     tft.fillScreen(TFT_WHITE);
@@ -238,16 +231,14 @@ void rfScannerSetup()
         GRAPH_TOP,
         128,
         GRAPH_BOTTOM - GRAPH_TOP + 1,
-        TFT_BLACK
-    );
+        TFT_BLACK);
 
     // Add channel labels below the graph
     for (int channel = 20; channel <= 100; channel += 20)
     {
         tft.setCursor(
             GRAPH_LEFT + channel - 3,
-            GRAPH_BOTTOM + 3
-        );
+            GRAPH_BOTTOM + 3);
 
         tft.setTextColor(TFT_BLACK, TFT_WHITE);
         tft.setTextSize(1);
@@ -264,8 +255,7 @@ void rfScannerLoop()
         GRAPH_TOP + 1,
         126,
         GRAPH_BOTTOM - GRAPH_TOP - 1,
-        TFT_WHITE
-    );
+        TFT_WHITE);
 
     // Reset the stored activity values
     for (int channel = 0; channel < 126; channel++)
@@ -276,7 +266,7 @@ void rfScannerLoop()
     // Scan every nRF24 channel
     for (int channel = 0; channel < 126; channel++)
     {
-        radio.setChannel(channel);
+        scannerRadio.setChannel(channel);
 
         int detections = 0;
 
@@ -285,7 +275,7 @@ void rfScannerLoop()
         {
             delayMicroseconds(170);
 
-            if (radio.testRPD())
+            if (scannerRadio.testRPD())
             {
                 detections++;
             }
@@ -294,7 +284,6 @@ void rfScannerLoop()
         // Convert detections into a 0.0 - 1.0 activity value
         activity[channel] = (float)detections / SAMPLES;
     }
-
 
     // Convert each channel's activity into a bar height
     for (int channel = 0; channel < 126; channel++)
@@ -306,9 +295,8 @@ void rfScannerLoop()
             GRAPH_BOTTOM - barHeight,
             1,
             barHeight,
-            activityColor(activity[channel])
-        );
+            activityColor(activity[channel]));
     }
 
-    delay(500);
+    delay(50000);
 }
