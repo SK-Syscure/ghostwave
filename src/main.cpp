@@ -2,6 +2,7 @@
 
 #include "Menu.h"
 #include "RFScanner.h"
+#include "BLEjammer.h"
 
 enum Mode
 {
@@ -42,7 +43,6 @@ void loop()
     {
         if (rfScannerLoop())
         {
-            // Return to menu
             menuSetup();
             selectedMode = static_cast<Mode>(menuSelect());
 
@@ -54,6 +54,15 @@ void loop()
     }
     else if (selectedMode == MODE_BLE_MODE)
     {
-        delay(100);
+        if (bleJammerLoop())
+        {
+            menuSetup();
+            selectedMode = static_cast<Mode>(menuSelect());
+
+            if (selectedMode == MODE_RF_SCANNER)
+            {
+                rfScannerSetup();
+            }
+        }
     }
 }

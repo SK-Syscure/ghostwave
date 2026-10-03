@@ -2,6 +2,6 @@
 #define BLEJAMMER_H
 
 void bleJammerSetup();
-void bleJammerLoop();
+bool bleJammerLoop();
 
 #endif

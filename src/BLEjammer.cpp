@@ -3,11 +3,18 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <RF24.h>
+#include <TFT_eSPI.h>
 
 #include <esp_bt.h>
 #include <esp_bt_main.h>
 
 SPIClass *spJammer = nullptr;
+
+#define BUTTON_PIN 32
+
+TFT_eSPI bleTft = TFT_eSPI();
+
+bool bleActive = false;
 
 RF24 radioJammer(4, 25, 19909090);
 
@@ -54,6 +61,36 @@ void adjustAndSweepChannels()
     }
 }
 
+void drawBLEScreen()
+{
+    bleTft.fillScreen(TFT_WHITE);
+
+    bleTft.setTextColor(TFT_BLACK, TFT_WHITE);
+    bleTft.setTextSize(1);
+
+    bleTft.setCursor(42, 8);
+    bleTft.print("BLE MODE");
+
+    bleTft.drawLine(10, 20, 118, 20, TFT_BLACK);
+
+    bleTft.setCursor(45, 45);
+
+    if (bleActive)
+    {
+        bleTft.print("ACTIVE");
+    }
+    else
+    {
+        bleTft.print("INACTIVE");
+    }
+
+    bleTft.setCursor(20, 80);
+    bleTft.print("PRESS = TOGGLE");
+
+    bleTft.setCursor(20, 95);
+    bleTft.print("HOLD  = MENU");
+}
+
 void bleJammerSetup()
 {
     esp_bt_controller_deinit();
@@ -65,13 +102,55 @@ void bleJammerSetup()
     }
 
     nrfSPIInit();
+
+       // UI
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+    bleTft.init();
+    bleTft.setRotation(1);
+
+    bleActive = false;
+
+    drawBLEScreen();
 }
 
-void bleJammerLoop()
+bool bleJammerLoop()
 {
-    adjustAndSweepChannels();
+    if (digitalRead(BUTTON_PIN) == LOW)
+    {
+        unsigned long pressStart = millis();
 
-    ptr_hop = (ptr_hop + 1) % sizeof(hopping_channel);
+        while (digitalRead(BUTTON_PIN) == LOW)
+        {
+            delay(10);
+        }
 
-    radioJammer.setChannel(hopping_channel[ptr_hop]);
+        unsigned long pressDuration = millis() - pressStart;
+
+        // HOLD = return to menu
+        if (pressDuration >= 600)
+        {
+            delay(50);
+            return true;
+        }
+
+        // SHORT PRESS = toggle state
+        bleActive = !bleActive;
+
+        drawBLEScreen();
+
+        delay(100);
+    }
+
+    // Only your benign BLE-mode work should run when bleActive is true.
+    if (bleActive)
+    {
+        adjustAndSweepChannels();
+        
+        ptr_hop = (ptr_hop + 1) % sizeof(hopping_channel);
+        
+        radioJammer.setChannel(hopping_channel[ptr_hop]);
+    }
+
+    return false;
 }
