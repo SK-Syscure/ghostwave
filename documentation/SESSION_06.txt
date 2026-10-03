@@ -1,0 +1,239 @@
+================================================================
+Ghostwave — Project Log
+================================================================
+Date        : 2026-10-03
+Session     : 06
+================================================================
+Team
+----------------------------------------------------------------
+Hazem     ──  RF Scanner + nRF24 experiments + Display & UI
+              — solo session
+================================================================
+
+SESSION FOCUS
+----------------------------------------------------------------
+Solo session. Moved Ghostwave from a single working RF scanner
+toward a multi-mode RF platform. Started experimenting with
+nRF24 transmission and the 2.4-GHz / BLE channel layout, hit and
+fixed a hardware-state bug when switching between modes, worked
+through the C++ linker problems that come with splitting code
+into modules, and rebuilt the boot screen around a new 40×50
+skull bitmap.
+
+Main focus was understanding what the hardware actually does
+underneath the library calls, not just getting code to run.
+
+================================================================
+BIGGEST ACHIEVEMENTS TODAY
+================================================================
+
+1. Found and fixed the radio-state persistence bug
+----------------------------------------------------------------
+  - Symptom: after running a test/carrier mode, the RF scanner
+    stopped behaving correctly, and only a physical
+    unplug/replug of the nRF24 "fixed" it
+  - Root cause (identified by Hazem): switching C++ functions
+    does not reset the radio. The nRF24 keeps whatever state the
+    previous mode left in its registers
+  - Fix: explicitly clean up before leaving a mode, calling
+    stopConstCarrier() before returning to the scanner
+  - Result: test/BLE mode -> RF scanner transition now works with
+    no power cycle
+  - Why it matters: this is the main architecture rule going
+    forward. Every mode must leave the hardware in a known state
+    before the next mode takes over
+
+2. Understood the hardware/software boundary
+----------------------------------------------------------------
+  - The call chain is:
+      C++ code -> RF24 library -> SPI -> nRF24 registers
+      -> synthesizer -> RF front-end -> actual signal
+  - This explained several confusing behaviors from earlier:
+      - changing a variable does not reset the radio
+      - calling a new function does not undo old configuration
+      - write() succeeding is not proof of RF propagation
+      - RPD is thresholded detection, not calibrated RSSI
+      - an nRF24 tuned to a BLE frequency is not a BLE radio
+
+3. Kept the working scanner safe while experimenting
+----------------------------------------------------------------
+  - Treated RFScanner as the stable component
+  - New experiments go in their own modules so the known-good
+    scanner is not edited while testing
+
+4. Rebuilt the boot screen around a new logo
+----------------------------------------------------------------
+  - Converted the shirt-print skull logo into a 40×50 1bpp
+    PROGMEM bitmap with transparent background
+  - Fixed the old size/position mismatch in the intro code
+  - Final layout: title at top, skull centered, loading bar at
+    bottom
+  - Title restored after the intro (it was being wiped)
+
+================================================================
+RF EXPERIMENTS
+================================================================
+
+nRF24 Transmission
+----------------------------------------------------------------
+  - Moved from "can I detect RF?" to "can I transmit RF?"
+  - Test setup: fixed channel (nRF24 channel 40 = 2440 MHz),
+    1 Mbps, low transmit power, periodic test payload
+  - Learned RF transmission is not BLE transmission. An nRF24
+    packet in the 2.4-GHz band is not a BLE packet
+
+write() / ACK Behavior
+----------------------------------------------------------------
+  - A failed write() usually means no ACK was received, not that
+    zero RF energy went out
+  - Separated the concepts: packet transmission, ACK reception,
+    auto-ack, carrier/RF activity, RPD detection
+  - Looked at disabling auto-ack for certain experiments
+
+BLE Channel Mapping
+----------------------------------------------------------------
+  - nRF24 frequency = 2400 + channel MHz
+  - BLE advertising channels mapped to nRF24 channels:
+
+      BLE ch   Frequency   nRF24 ch
+      37       2402 MHz    2
+      38       2426 MHz    26
+      39       2480 MHz    80
+
+  - Looked at cycling between these three channels
+  - Learned the radio needs settling time after a channel change.
+    Changing the channel is not instantaneous (same reason RPD
+    needs the receiver active long enough before reading)
+
+BLE Jammer Mode (BLEjammer.cpp / BLEjammer.h)
+----------------------------------------------------------------
+  - Built as its own Ghostwave mode, same setup()/loop() pattern
+    as the scanner
+  - On startup, disables the ESP32's own Bluetooth stack
+    (esp_bt_controller_deinit, esp_bluedroid_disable) so it does
+    not conflict with the nRF24
+  - nRF24 brought up on its own SPIClass(VSPI) instance, separate
+    from the scanner's radio object
+  - Radio configured for continuous-carrier jamming: auto-ack off,
+    0 retries, CRC disabled, max TX power, 2 Mbps, then
+    startConstCarrier()
+  - Goal: put continuous RF energy on the three BLE advertising
+    frequencies (2402/2426/2480 MHz) plus a wider sweep across
+    channels 0-79
+  - Channel coverage: a full 0-79 sweep each cycle, a back-and-
+    forth "ping-pong" sweep variable, and a fixed ~24-channel hop
+    table spread across the 2.4 GHz band
+  - UI: "BLE MODE" screen with ACTIVE/INACTIVE state; short button
+    press toggles jamming on/off, long press (600 ms+) shuts the
+    radio down cleanly and returns to the menu
+  - Shutdown function stops the carrier, stops listening, and
+    powers down the radio before leaving the mode — applies the
+    state-cleanup rule from item 1 above so switching back to the
+    scanner doesn't break it
+  - Note: tuning an nRF24 near BLE frequencies does not make it a
+    BLE-aware device. Interference is a physical-layer effect
+  - Results of the interference tests were not recorded in this
+    log
+  - Legal note: intentional jamming is prohibited under FCC rules
+    (and equivalent regulators elsewhere) even for own equipment
+    in a private space, since RF propagates beyond the intended
+    area. Worth checking local regulations before further work
+    on this mode
+
+================================================================
+SOFTWARE ARCHITECTURE
+================================================================
+
+Linker Error: Duplicate Global
+----------------------------------------------------------------
+  - Splitting files caused a duplicate definition of the radio
+    object (RF24 radio; defined in more than one .cpp)
+  - Lesson learned:
+      Definition   : RF24 radio(...);       creates the object
+      Declaration  : extern RF24 radio;     says it exists
+                                            somewhere else
+  - Shared objects are defined once, and other files use extern
+
+Module Structure
+----------------------------------------------------------------
+  - Continued from Session 05:
+
+      src/
+      ├── main.cpp
+      ├── RFScanner.cpp
+      └── RFScanner.h
+
+  - main.cpp orchestrates; each mode owns its implementation
+  - Planned mode pattern: initialize -> run -> clean up
+    -> hand control back
+
+Hardware Notes
+----------------------------------------------------------------
+  - Single-radio scanner pins:
+      SPI (VSPI): SCK 18, MISO 19, MOSI 23
+      nRF24: CE = GPIO4, CSN = GPIO25
+  - Earlier two-radio experiment (separate buses):
+      HSPI: SCK 14, MISO 12, MOSI 13, CSN 15, CE 16
+      VSPI: SCK 18, MISO 19, MOSI 23, CSN 21, CE 22
+      GPIO33 used for strategy selection
+  - Two radios covering different parts of the spectrum was
+    explored instead of one radio retuning sequentially
+
+================================================================
+DISPLAY & UI
+================================================================
+
+Logo Bitmap
+----------------------------------------------------------------
+  - Source: photo of the skull logo printed on a shirt
+  - Pipeline: median filter to remove fabric speckle, threshold
+    at full resolution, area-coverage downscale, tight crop
+  - Output: 40×50, 1bpp, MSB-first, 250 bytes. Logo is 40×32
+    centered, 0 = transparent
+  - Draw call (transparent): drawBitmap(x, y, skull, 40, 50, color)
+
+Boot Screen Layout (160×128, rotation 1)
+----------------------------------------------------------------
+  - Title "RF SCANNER" at top, centered
+  - Skull at x = 60, y = 34
+  - Loading bar at bottom (y = 104) with percentage below
+  - Final cyan skull flash kept
+  - Bug fixed: bitmap was drawn at 24×24 in some calls and a
+    different position in others, so the skull jumped
+  - Bug fixed: title disappeared after the intro because the
+    screen was cleared. Title is now redrawn in rfScannerSetup()
+    after the intro, above the graph frame
+
+================================================================
+OPEN ITEMS
+================================================================
+  - BUTTON_PIN (GPIO32) now has pinMode(INPUT_PULLUP) set in
+    bleJammerSetup() — still confirm the scanner module sets it
+    too, since it uses the same pin
+  - Remove the duplicate fillScreen at the end of
+    introAnimation() (setup already clears)
+  - Write a shared radio init/cleanup helper that every mode
+    calls on entry and exit
+  - Faster iteration: reflashing for every small change is slow
+
+================================================================
+RESULT
+================================================================
+
+Radio state cleanup: WORKING (stopConstCarrier before scanner)
+Mode switching without power cycle: WORKING
+RF scanner: WORKING
+Boot animation (new 40×50 skull): WORKING
+Title restored after intro: WORKING
+BLE jammer mode (BLEjammer.cpp/h): WORKING, with toggle + menu return
+nRF24 TX / carrier experiments: IN PROGRESS
+Shared radio init/cleanup helper: NOT STARTED
+
+================================================================
+STATUS
+----------------------------------------------------------------
+Ghostwave scanner: STABLE
+Multi-mode architecture: STARTED — state cleanup rule established
+================================================================
+SESSION STATUS : MODE SWITCHING FIXED — HARDWARE STATE UNDERSTOOD
+================================================================
