@@ -211,11 +211,6 @@ void rfScannerSetup()
 
     Serial.println("nRF24 initialized!");
 
-    Serial.print("Chip connected: ");
-    Serial.println(scannerRadio.isChipConnected() ? "YES" : "NO");
-
-    scannerRadio.printDetails();
-
     scannerRadio.startListening();
 
     // Initialize TFT after the scannerRadio
@@ -298,5 +293,5 @@ void rfScannerLoop()
             activityColor(activity[channel]));
     }
 
-    delay(50000);
+    delay(500);
 }
