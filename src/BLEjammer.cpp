@@ -29,6 +29,15 @@ byte hopping_channel[] = {
     74, 76, 78, 80, 82, 84, 86
 };
 
+void bleJammerShutdown()
+{
+    radioJammer.stopConstCarrier();
+    radioJammer.stopListening();
+    radioJammer.powerDown();
+
+    delay(10);
+}
+
 void nrfSPIInit()
 {
     spJammer = new SPIClass(VSPI);
@@ -130,6 +139,7 @@ bool bleJammerLoop()
         // HOLD = return to menu
         if (pressDuration >= 600)
         {
+            bleJammerShutdown();
             delay(50);
             return true;
         }

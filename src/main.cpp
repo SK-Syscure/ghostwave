@@ -28,12 +28,7 @@ void setup()
     }
     else if (selectedMode == MODE_BLE_MODE)
     {
-        // BLE mode placeholder for now.
-        Serial.println("BLE mode selected.");
-        Serial.println("BLE mode is not implemented yet.");
-
-        // Keep the TFT alive with a simple message.
-        // We don't activate the experimental RF transmitter here.
+        bleJammerSetup();
     }
 }
 
@@ -50,6 +45,10 @@ void loop()
             {
                 rfScannerSetup();
             }
+            else if (selectedMode == MODE_BLE_MODE)
+            {
+                bleJammerSetup();
+            }
         }
     }
     else if (selectedMode == MODE_BLE_MODE)
@@ -62,6 +61,10 @@ void loop()
             if (selectedMode == MODE_RF_SCANNER)
             {
                 rfScannerSetup();
+            }
+            else if (selectedMode == MODE_BLE_MODE)
+            {
+                bleJammerSetup();
             }
         }
     }

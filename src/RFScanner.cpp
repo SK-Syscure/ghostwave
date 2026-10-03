@@ -19,75 +19,89 @@ const int GRAPH_TOP = 16;
 const int GRAPH_BOTTOM = 106;
 const int GRAPH_LEFT = 16;
 
-const uint8_t skull[] PROGMEM =
-    {
-        // Top bones
-        0b11110000, 0b00000000, 0b00011110,
-        0b11111000, 0b00000000, 0b00111110,
-        0b11111100, 0b00000000, 0b01111110,
-        0b01111100, 0b00000000, 0b01111100,
+// 40x50, 1bpp, MSB-first, row-major (250 bytes), logo 40x32 centered, 0 = transparent
+const uint8_t skull[] PROGMEM = {
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x03, 0xFF, 0xC0, 0x00,
+  0x00, 0x00, 0x00, 0x70, 0x00,
+  0x00, 0x03, 0xFF, 0x8C, 0x00,
+  0x00, 0x0E, 0x00, 0xF8, 0x00,
+  0x38, 0x18, 0xEF, 0x30, 0x18,
+  0x7E, 0x1B, 0xEF, 0xC0, 0x7E,
+  0x1F, 0x0F, 0xEF, 0xF0, 0xF8,
+  0x0F, 0x1F, 0xEF, 0xF8, 0xE0,
+  0x87, 0xFF, 0xEF, 0xFF, 0xE1,
+  0xFF, 0xFF, 0xEF, 0xFF, 0xFF,
+  0xFF, 0xFF, 0xEF, 0xFF, 0xFF,
+  0x7F, 0xFF, 0xEF, 0xFF, 0xFE,
+  0x1B, 0xFF, 0xEF, 0xFF, 0xFC,
+  0x00, 0xFF, 0xEF, 0xFF, 0x00,
+  0x00, 0xFF, 0xEF, 0xFF, 0x00,
+  0x00, 0xFF, 0xEF, 0xFF, 0x00,
+  0x00, 0xFF, 0xEC, 0x07, 0x00,
+  0x00, 0xFF, 0xEC, 0x03, 0x00,
+  0x00, 0xFF, 0xEC, 0x03, 0x00,
+  0x03, 0xFF, 0xEE, 0x07, 0xC0,
+  0x3F, 0xFF, 0xEE, 0x07, 0xFC,
+  0x7F, 0xFF, 0xEF, 0x8F, 0xFE,
+  0xFF, 0xFF, 0xEF, 0xFF, 0xFF,
+  0xEF, 0xFF, 0xEF, 0xFF, 0xF7,
+  0x87, 0x9F, 0xEF, 0xF9, 0xE1,
+  0x0F, 0x07, 0xFF, 0xE0, 0xF0,
+  0x3F, 0x03, 0xFF, 0xC0, 0xFC,
+  0x3E, 0x03, 0xFF, 0xC0, 0x7C,
+  0x00, 0x01, 0xFF, 0x80, 0x00,
+  0x00, 0x01, 0xFF, 0x80, 0x00,
+  0x00, 0x03, 0xFF, 0x80, 0x00,
+  0x00, 0x03, 0xC7, 0x80, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00
+};
 
-        // Top of skull
-        0b00111111, 0b11111111, 0b11111000,
-        0b00011111, 0b11111111, 0b11110000,
-        0b00000111, 0b11111111, 0b11000000,
-        0b00001111, 0b11111111, 0b11100000,
-        0b00001111, 0b11111111, 0b11100000,
-        0b00001111, 0b11111111, 0b11100000,
-
-        // Eyes (with bottom outer-corner cuts)
-        0b00001100, 0b00111000, 0b01100000,
-        0b00001100, 0b00111000, 0b01100000,
-        0b00001110, 0b00111000, 0b11100000,
-
-        // Nose
-        0b00001111, 0b11101111, 0b11100000,
-        0b00001111, 0b11101111, 0b11100000,
-
-        // Cheek tapers to jaw
-        0b00000111, 0b11111111, 0b11000000,
-        0b00000011, 0b11111111, 0b10000000,
-
-        // Teeth (4 teeth, 3 gaps)
-        0b00000011, 0b01101101, 0b10000000,
-        0b00000011, 0b01101101, 0b10000000,
-        0b00000011, 0b01101101, 0b10000000,
-
-        // Bottom bones
-        0b01111100, 0b00000000, 0b01111100,
-        0b11111100, 0b00000000, 0b01111110,
-        0b11111000, 0b00000000, 0b00111110,
-        0b11110000, 0b00000000, 0b00011110};
+#define SKULL_W 40
+#define SKULL_H 50
 
 void introAnimation()
 {
-    const int skullX = 68;
-    const int skullY = 28;
+    const int SCREEN_W = 160;
 
-    const int barX = 35;
-    const int barY = 75;
-    const int barWidth = 90;
+    // Layout (160x128, rotation 1)
+    const int titleY   = 5;
+    const int skullX   = (SCREEN_W - SKULL_W) / 2;   // 60 -> horizontally centered
+    const int skullY   = 34;                         // centered in the space between title and bar
+
+    const int barWidth  = 90;
     const int barHeight = 8;
+    const int barX      = (SCREEN_W - barWidth) / 2; // 35
+    const int barY      = 104;
+    const int pctY      = 116;                       // percentage under the bar
 
-    // Initial screen
     tft.fillScreen(TFT_WHITE);
 
+    // Title at top, centered
     tft.setTextSize(1);
     tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    tft.setCursor(45, 5);
-    tft.print("RF SCANNER");
+    tft.drawCentreString("RF SCANNER", SCREEN_W / 2, titleY, 1);
 
     delay(400);
 
-    // Skull appears
-    tft.drawBitmap(
-        skullX,
-        skullY,
-        skull,
-        24,
-        24,
-        TFT_BLACK,
-        TFT_WHITE);
+    // Skull appears (6-arg form = transparent background)
+    tft.drawBitmap(skullX, skullY, skull, SKULL_W, SKULL_H, TFT_BLACK);
 
     delay(400);
 
@@ -96,75 +110,30 @@ void introAnimation()
     {
         int filledWidth = (barWidth * progress) / 100;
 
-        // Clear the progress bar
-        tft.fillRect(
-            barX,
-            barY,
-            barWidth,
-            barHeight,
-            TFT_WHITE);
+        // Bar background + fill
+        tft.fillRect(barX, barY, barWidth, barHeight, TFT_WHITE);
+        tft.drawRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2, TFT_BLACK);
+        tft.fillRect(barX, barY, filledWidth, barHeight, TFT_GREEN);
 
-        // Draw the progress
-        tft.fillRect(
-            barX,
-            barY,
-            filledWidth,
-            barHeight,
-            TFT_GREEN);
-
-        // Draw percentage
-        tft.fillRect(
-            65,
-            88,
-            30,
-            10,
-            TFT_WHITE);
-
+        // Percentage, centered under the bar
+        tft.fillRect(SCREEN_W / 2 - 20, pctY, 40, 10, TFT_WHITE);
         tft.setTextColor(TFT_BLACK, TFT_WHITE);
-        tft.setTextSize(1);
-        tft.setCursor(70, 88);
-        tft.print(progress);
-        tft.print("%");
+        tft.drawCentreString(String(progress) + "%", SCREEN_W / 2, pctY, 1);
 
         delay(70);
     }
 
     // Final skull flash
-    tft.fillRect(
-        skullX,
-        skullY,
-        24,
-        24,
-        TFT_WHITE);
-
-    tft.drawBitmap(
-        skullX,
-        skullY,
-        skull,
-        24,
-        24,
-        TFT_CYAN,
-        TFT_WHITE);
-
+    tft.fillRect(skullX, skullY, SKULL_W, SKULL_H, TFT_WHITE);
+    tft.drawBitmap(skullX, skullY, skull, SKULL_W, SKULL_H, TFT_CYAN);
     delay(120);
 
-    tft.fillRect(
-        skullX,
-        skullY,
-        24,
-        24,
-        TFT_WHITE);
-
-    tft.drawBitmap(
-        skullX,
-        skullY,
-        skull,
-        24,
-        24,
-        TFT_BLACK,
-        TFT_WHITE);
-
+    tft.fillRect(skullX, skullY, SKULL_W, SKULL_H, TFT_WHITE);
+    tft.drawBitmap(skullX, skullY, skull, SKULL_W, SKULL_H, TFT_BLACK);
     delay(300);
+
+    // Clear the intro so the scanner graph starts on a clean screen
+    tft.fillScreen(TFT_WHITE);
 }
 
 uint16_t activityColor(float activity)
@@ -199,6 +168,9 @@ void rfScannerSetup()
 {
     Serial.begin(115200);
 
+    scannerRadio.powerDown();
+    delay(10);
+
     // Initialize nRF24 first
     if (!scannerRadio.begin())
     {
@@ -210,7 +182,18 @@ void rfScannerSetup()
         }
     }
 
+    scannerRadio.setDataRate(RF24_1MBPS);
+    scannerRadio.setChannel(76);
+
+    scannerRadio.setAutoAck(false);
+    scannerRadio.disableCRC();
+
+    scannerRadio.stopListening();
+    scannerRadio.startListening();
+
     Serial.println("nRF24 initialized!");
+
+    scannerRadio.printDetails();
 
     scannerRadio.startListening();
 
@@ -221,6 +204,15 @@ void rfScannerSetup()
 
     introAnimation();
 
+    
+    // Clear intro leftovers (skull, loading bar, percentage)
+    tft.fillScreen(TFT_WHITE);
+
+    // Title at the top
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_BLACK, TFT_WHITE);
+    tft.drawCentreString("RF SCANNER", 80, 4, 1);
+
     // Draw the static graph frame
     tft.drawRect(
         GRAPH_LEFT - 1,
@@ -228,6 +220,8 @@ void rfScannerSetup()
         128,
         GRAPH_BOTTOM - GRAPH_TOP + 1,
         TFT_BLACK);
+
+    // ...channel labels loop stays the sam
 
     // Add channel labels below the graph
     for (int channel = 20; channel <= 100; channel += 20)
