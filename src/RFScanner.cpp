@@ -8,6 +8,7 @@ TFT_eSPI tft = TFT_eSPI();
 
 #define CE_PIN 4
 #define CS_PIN 25
+#define BUTTON_PIN 32
 
 RF24 scannerRadio(CE_PIN, CS_PIN);
 
@@ -242,7 +243,7 @@ void rfScannerSetup()
     }
 }
 
-void rfScannerLoop()
+bool rfScannerLoop()
 {
     // Clear only the inside of the graph so the frame stays intact
     tft.fillRect(
@@ -294,4 +295,18 @@ void rfScannerLoop()
     }
 
     delay(500);
+
+    if (digitalRead(BUTTON_PIN) == LOW)
+    {
+        delay(50);
+
+        while (digitalRead(BUTTON_PIN) == LOW)
+        {
+            delay(10);
+        }
+
+        return true;
+    }
+
+    return false;
 }

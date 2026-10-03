@@ -2,6 +2,6 @@
 #define RFSCANNER_H
 
 void rfScannerSetup();
-void rfScannerLoop();
+bool rfScannerLoop();
 
 #endif
