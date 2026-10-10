@@ -1,0 +1,217 @@
+================================================================
+Ghostwave - Project Log
+================================================================
+Date        : 2026-10-10
+Session     : 07
+Covers      : 2026-09-22 to 2026-10-10
+================================================================
+
+Team
+----------------------------------------------------------------
+Hazem     --  RF Scanner, Display & UI, hardware investigation
+              -- solo session
+
+SESSION FOCUS
+----------------------------------------------------------------
+- Turned the single-view scanner into a two-view device.
+- Split it into modules under src/rfscanner/ with no behavior change.
+- Investigated a CC1101 module that would not respond over SPI.
+  Paused, because the module appears faulty.
+- Decided to remove the BLE jammer mode and keep Ghostwave
+  receive-only.
+
+ACHIEVEMENTS
+----------------------------------------------------------------
+
+1. Waterfall view
+  - Scrolling spectrum history, newest sweep at the bottom.
+  - Stored in an off-screen buffer (TFT_eSprite), 126 x 88 pixels,
+    about 22 KB.
+  - Recorded every sweep, even while the bars are on screen.
+
+2. Two views, separate state
+  - Bars or waterfall (viewMode) and RUN or HOLD (scanState) are
+    independent. Switching views during HOLD keeps HOLD active.
+
+3. Two-button control
+  - GPIO32: short press enters HOLD, moves the cursor, or resumes.
+    Long press (800 ms) exits to the menu.
+  - GPIO33: switches views.
+
+4. HOLD mode
+  - Freezes the display and places the cursor on the strongest
+    channel.
+  - Short press moves to the next local peak. When none remain,
+    it resumes RUN.
+  - Readout example: "CH37 2437MHz 88% pk94%".
+
+5. Peak hold and partial redraws
+  - Peaks fall slowly and rise immediately.
+  - Only changed bar columns are redrawn, tracked by dispH, dispPk,
+    and dispCol.
+
+6. Non-blocking input
+  - Buttons are checked once per channel during the sweep, so
+    presses register within a few milliseconds.
+  - Presses set flags; the loop consumes them. Nothing waits.
+
+7. Refactor into src/rfscanner/
+  - 718-line file split into focused modules (see ARCHITECTURE).
+  - Verified function-by-function against the original before the
+    build.
+  - Build: RAM 12.2%, flash 81.6%.
+  - Tested on hardware, committed as eb4334c, pushed to origin/main.
+    Original single file is still in history at f18ab45.
+
+CC1101 INVESTIGATION (PAUSED)
+----------------------------------------------------------------
+Symptoms
+  - ESP32 code runs and SPI lines show activity, but the CC1101
+    returns no valid response.
+  - Early MISO readings sat around 0 to 0.5 V.
+  - Module arrived with bent pins.
+  - VCC measured about 3.25 V, so power looked normal.
+
+Pin map (standalone rig, GDO0 disconnected)
+  CSN GPIO5, SCK GPIO18, MISO GPIO19, MOSI GPIO23
+
+Key tests
+  - Two library stacks (SmartRC and LSatan, in Arduino IDE and
+    PlatformIO): both reported "not detected." Same failure across
+    tools pointed away from the library.
+  - Bit-banged SPI at a slow clock: same no-response result, which
+    removed the hardware SPI peripheral from the question.
+  - Oscilloscope session at the Technion RF lab: did not start
+    communicating during the visit. A scope showed all four SPI
+    lines together, which a single voltage reading cannot.
+
+Conclusion
+  No wiring, power, or software fault explained the failure. With
+  the bent pins on arrival, the module is the most likely cause.
+  Not confirmed. Next step: test a replacement module with the same
+  wiring and code.
+
+Lessons
+  - Test one layer at a time (software, electrical, protocol).
+  - A running program does not prove a peripheral works.
+  - Capture timing on digital lines; static voltage readings are
+    weak evidence.
+  - Asking experts for help is part of the process.
+
+DIRECTION AND DECISIONS
+----------------------------------------------------------------
+- nRF24 transmit experiments: PAUSED.
+- BLE jammer mode: REMOVE next session (files, menu entry, main.cpp
+  calls).
+  - Reason: intentional jamming is prohibited under telecom law in
+    Israel and most countries, even on your own equipment, because
+    signals reach other people's devices.
+  - Tested inside a shielded enclosure. Results were not recorded
+    and are not relied on.
+  - This is not legal advice. Confirm local rules with the regulator.
+  - Old commits still contain the code. History is not being
+    rewritten without agreement from the project partner.
+
+Radio lessons (receive side)
+  - nRF24 frequency = 2400 + channel MHz.
+  - RPD is a yes/no threshold, not a calibrated power reading.
+  - Changing a variable does not reset the radio. Each mode must
+    leave the hardware in a known state.
+  - Channel changes need a settling time before a reading is valid.
+
+ARCHITECTURE
+----------------------------------------------------------------
+  src/
+  |-- main.cpp                  mode switching (menu, scanner, BLE)
+  |-- Menu.cpp / Menu.h         boot screen and mode menu
+  |-- BLEjammer.cpp / .h        BLE mode (scheduled for removal)
+  |-- rfscanner/
+      |-- RFScanner.h           public API: setup and loop
+      |-- RFScanner.cpp         global definitions, setup, loop
+      |-- scan_state.h          constants, Button struct, enums,
+      |                         extern globals, declarations
+      |-- buttons.cpp           debounce and press detection
+      |-- sweep.cpp             measure, update peaks, redraw
+      |-- hold.cpp              HOLD, cursor, peaks, view switch
+      |-- display_common.cpp    frame, labels, status, readout
+      |-- display_bars.cpp      bar drawing and partial updates
+      |-- display_waterfall.cpp history buffer and scrolling
+      |-- intro_scanner.h/.cpp  boot animation and skull bitmap
+
+Design rules
+  - Globals are defined once (RFScanner.cpp) and declared extern
+    in scan_state.h.
+  - Headers hold declarations and constants, never mutable globals.
+  - Button presses set flags; the loop consumes them.
+  - Each mode has setup and loop. A loop returning true means
+    "exit to menu."
+
+Loop flow
+  rfScannerLoop()
+    RUN:  runSweep()
+            per channel: set channel, poll buttons, sample RPD
+            update peaks, redraw changed columns
+            record waterfall row
+    HOLD: poll buttons, short delay
+    then: long press exits, view button switches, HOLD button
+          handles short press
+    end:  update status line
+
+DISPLAY
+----------------------------------------------------------------
+Bars view
+  - 126 columns (x = 16 to 141), height = activity x 89 rows.
+  - 1 px dark-gray peak marker above each bar.
+  - Wi-Fi markers 1, 6, 11 under the graph.
+
+Waterfall view
+  - 2 px per sweep, about 44 sweeps of history.
+
+Colors
+  - RGB565 (5 red, 6 green, 5 blue), converted with tft.color565().
+  - Activity scale: cyan (0), green (0.5), red (1).
+
+Boot screen
+  - 40 x 50 skull bitmap from a shirt print, transparent background.
+  - Title is redrawn after the intro.
+
+BUGS FIXED
+----------------------------------------------------------------
+1. Duplicate definition linker error
+   - One global defined in two files. Fix: define once in
+     RFScanner.cpp, declare extern in scan_state.h.
+
+2. Brace-initialization compile error
+   - "could not convert {32} to Button" under C++11 rules.
+   - Fix: set the pin field in setup instead.
+
+3. Serial baud typo
+   - 115800 instead of 115200, caught by the verification pass.
+
+OPEN ITEMS
+----------------------------------------------------------------
+Next session
+  - Remove BLE jammer mode (files, menu entry, main.cpp calls).
+    Build, test, commit.
+
+RESULT
+----------------------------------------------------------------
+Waterfall view, HOLD, cursor, peak nav:  WORKING
+Two-button control and long-press exit:  WORKING
+Refactor into src/rfscanner/:            WORKING (hardware-tested)
+Boot screen and intro:                   WORKING
+BLE jammer mode:                         SCHEDULED FOR REMOVAL
+nRF24 transmit experiments:              PAUSED
+CC1101 module:                           PAUSED (appears faulty,
+                                         not confirmed)
+Shared radio helper:                     NOT STARTED
+
+STATUS
+----------------------------------------------------------------
+Scanner: STABLE. Two views, modular, pushed.
+Direction: receive-only spectrum analysis.
+
+================================================================
+SESSION STATUS : SCANNER REFACTOR AND WATERFALL COMPLETE
+                 CC1101 PAUSED - JAMMER REMOVAL NEXT
+================================================================
