@@ -16,7 +16,7 @@ TFT_eSPI bleTft = TFT_eSPI();
 
 bool bleActive = false;
 
-RF24 radioJammer(4, 25, 19909090);
+RF24 radioJammer(4, 25, 10000000);
 
 byte i = 45;
 byte ptr_hop = 0;
@@ -36,6 +36,13 @@ void bleJammerShutdown()
     radioJammer.powerDown();
 
     delay(10);
+
+    if (spJammer != nullptr)
+    {
+        spJammer->end();
+        delete spJammer;
+        spJammer = nullptr;
+    }
 }
 
 void nrfSPIInit()
