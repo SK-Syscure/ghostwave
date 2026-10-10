@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
 #include "Menu.h"
-#include "RFScanner.h"
+#include "rfscanner/RFScanner.h"
 #include "BLEjammer.h"
 
 enum Mode
